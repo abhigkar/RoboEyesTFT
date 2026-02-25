@@ -582,10 +582,10 @@ class TFT_RoboEyes {
         int safeSide = ((minDim * 707) / 1000) - (2 * roundEdgePadding);
         if (safeSide < 1) safeSide = 1;
 
-        int safeMinX = ((screenWidth - safeSide) / 2) + roundEdgePadding;
-        int safeMinY = ((screenHeight - safeSide) / 2) + roundEdgePadding;
-        int safeMaxX = safeMinX + safeSide - totalWidth;
-        int safeMaxY = safeMinY + safeSide - eyeHeight;
+        int safeMinX = (screenWidth - safeSide) / 2;
+        int safeMinY = (screenHeight - safeSide) / 2;
+        int safeMaxX = (screenWidth + safeSide) / 2 - totalWidth;
+        int safeMaxY = (screenHeight + safeSide) / 2 - eyeHeight;
 
         minX = safeMinX;
         minY = safeMinY;
