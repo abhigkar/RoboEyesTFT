@@ -314,38 +314,45 @@ class TFT_RoboEyes {
 
     // Predefined position for left eye (affects both eyes)
     void setPosition(uint8_t position) {
+      int minX = getScreenConstraint_MinX();
+      int minY = getScreenConstraint_MinY();
+      int maxX = getScreenConstraint_X();
+      int maxY = getScreenConstraint_Y();
+      int midX = (minX + maxX) / 2;
+      int midY = (minY + maxY) / 2;
+      
       switch (position) {
         case N:
-          eyeLxNext = getScreenConstraint_X() / 2;
-          eyeLyNext = 0;
+          eyeLxNext = midX;
+          eyeLyNext = minY;
           break;
         case NE:
-          eyeLxNext = getScreenConstraint_X();
-          eyeLyNext = 0;
+          eyeLxNext = maxX;
+          eyeLyNext = minY;
           break;
         case E:
-          eyeLxNext = getScreenConstraint_X();
-          eyeLyNext = getScreenConstraint_Y() / 2;
+          eyeLxNext = maxX;
+          eyeLyNext = midY;
           break;
         case SE:
-          eyeLxNext = getScreenConstraint_X();
-          eyeLyNext = getScreenConstraint_Y();
+          eyeLxNext = maxX;
+          eyeLyNext = maxY;
           break;
         case S:
-          eyeLxNext = getScreenConstraint_X() / 2;
-          eyeLyNext = getScreenConstraint_Y();
+          eyeLxNext = midX;
+          eyeLyNext = maxY;
           break;
         case SW:
-          eyeLxNext = 0;
-          eyeLyNext = getScreenConstraint_Y();
+          eyeLxNext = minX;
+          eyeLyNext = maxY;
           break;
         case W:
-          eyeLxNext = 0;
-          eyeLyNext = getScreenConstraint_Y() / 2;
+          eyeLxNext = minX;
+          eyeLyNext = midY;
           break;
         case NW:
-          eyeLxNext = 0;
-          eyeLyNext = 0;
+          eyeLxNext = minX;
+          eyeLyNext = minY;
           break;
         default:
           // DEFAULT (center): use the preset default positions.
@@ -409,12 +416,96 @@ class TFT_RoboEyes {
     // ---------------------------
     // Getters for screen constraints
     int getScreenConstraint_X() {
-      int constraint = screenWidth - eyeLwidthCurrent - spaceBetweenCurrent - eyeRwidthCurrent;
-      return (constraint < 0) ? 0 : constraint;
+      int totalWidth = eyeLwidthCurrent;
+      if (!cyclops) totalWidth += spaceBetweenCurrent + eyeRwidthCurrent;
+      if (totalWidth < 1) totalWidth = 1;
+      
+      int constraint = screenWidth - totalWidth;
+      if (constraint < 0) return 0;
+      
+      if (roundDisplay) {
+        int minDim = (screenWidth < screenHeight) ? screenWidth : screenHeight;
+        int safeSide = ((minDim * 707) / 1000) - (2 * roundEdgePadding);
+        if (safeSide < 1) safeSide = 1;
+        
+        int safeMinX = (screenWidth - safeSide) / 2;
+        int safeMaxX = (screenWidth + safeSide) / 2 - totalWidth;
+        
+        // If eyes are too large for safe area, keep them centered
+        if (safeMaxX < safeMinX) {
+          return (screenWidth - totalWidth) / 2;
+        }
+        return safeMaxX;
+      }
+      
+      return constraint;
     }
+    
     int getScreenConstraint_Y() {
-      int constraint = screenHeight - eyeLheightDefault;
-      return (constraint < 0) ? 0 : constraint;
+      int eyeHeight = eyeLheightDefault;
+      if (eyeHeight < 1) eyeHeight = 1;
+      
+      int constraint = screenHeight - eyeHeight;
+      if (constraint < 0) return 0;
+      
+      if (roundDisplay) {
+        int minDim = (screenWidth < screenHeight) ? screenWidth : screenHeight;
+        int safeSide = ((minDim * 707) / 1000) - (2 * roundEdgePadding);
+        if (safeSide < 1) safeSide = 1;
+        
+        int safeMinY = (screenHeight - safeSide) / 2;
+        int safeMaxY = (screenHeight + safeSide) / 2 - eyeHeight;
+        
+        // If eyes are too large for safe area, keep them centered
+        if (safeMaxY < safeMinY) {
+          return (screenHeight - eyeHeight) / 2;
+        }
+        return safeMaxY;
+      }
+      
+      return constraint;
+    }
+    
+    // Get minimum safe X/Y coordinates for round displays
+    int getScreenConstraint_MinX() {
+      if (!roundDisplay) return 0;
+      
+      int totalWidth = eyeLwidthCurrent;
+      if (!cyclops) totalWidth += spaceBetweenCurrent + eyeRwidthCurrent;
+      if (totalWidth < 1) totalWidth = 1;
+      
+      int minDim = (screenWidth < screenHeight) ? screenWidth : screenHeight;
+      int safeSide = ((minDim * 707) / 1000) - (2 * roundEdgePadding);
+      if (safeSide < 1) safeSide = 1;
+      
+      int safeMinX = (screenWidth - safeSide) / 2;
+      int safeMaxX = (screenWidth + safeSide) / 2 - totalWidth;
+      
+      // If eyes are too large for safe area, keep them centered
+      if (safeMaxX < safeMinX) {
+        return (screenWidth - totalWidth) / 2;
+      }
+      return safeMinX;
+    }
+    
+    int getScreenConstraint_MinY() {
+      if (!roundDisplay) return 0;
+      
+      int eyeHeight = eyeLheightDefault;
+      if (eyeHeight < 1) eyeHeight = 1;
+      
+      int minDim = (screenWidth < screenHeight) ? screenWidth : screenHeight;
+      int safeSide = ((minDim * 707) / 1000) - (2 * roundEdgePadding);
+      if (safeSide < 1) safeSide = 1;
+      
+      int safeMinY = (screenHeight - safeSide) / 2;
+      int safeMaxY = (screenHeight + safeSide) / 2 - eyeHeight;
+      
+      // If eyes are too large for safe area, keep them centered
+      if (safeMaxY < safeMinY) {
+        return (screenHeight - eyeHeight) / 2;
+      }
+      return safeMinY;
     }
 
     // ---------------------------
@@ -622,8 +713,23 @@ class TFT_RoboEyes {
 
       if (idle) {
         if (millis() >= idleAnimationTimer) {
-          eyeLxNext = random(getScreenConstraint_X());
-          eyeLyNext = random(getScreenConstraint_Y());
+          int minX = getScreenConstraint_MinX();
+          int minY = getScreenConstraint_MinY();
+          int maxX = getScreenConstraint_X();
+          int maxY = getScreenConstraint_Y();
+          
+          if (maxX > minX) {
+            eyeLxNext = minX + random(maxX - minX + 1);
+          } else {
+            eyeLxNext = minX;
+          }
+          
+          if (maxY > minY) {
+            eyeLyNext = minY + random(maxY - minY + 1);
+          } else {
+            eyeLyNext = minY;
+          }
+          
           idleAnimationTimer = millis() + (idleInterval * 1000UL) + (random(idleIntervalVariation) * 1000UL);
         }
       }
