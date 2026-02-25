@@ -128,6 +128,34 @@ class TFT_RoboEyes {
     unsigned long blinkCloseDurationTimer; // timer for how long to stay closed
     int blinkCloseDuration = 150;    // blink closed duration in milliseconds
 
+    // --- Sweat Animation ---
+    bool sweat = false;
+    uint8_t sweatBorderradius = 3;
+
+    // Sweat drop 1
+    int sweat1XPosInitial = 2;
+    int sweat1XPos;
+    float sweat1YPos = 2;
+    int sweat1YPosMax;
+    float sweat1Height = 2;
+    float sweat1Width = 1;
+
+    // Sweat drop 2
+    int sweat2XPosInitial = 2;
+    int sweat2XPos;
+    float sweat2YPos = 2;
+    int sweat2YPosMax;
+    float sweat2Height = 2;
+    float sweat2Width = 1;
+
+    // Sweat drop 3
+    int sweat3XPosInitial = 2;
+    int sweat3XPos;
+    float sweat3YPos = 2;
+    int sweat3YPosMax;
+    float sweat3Height = 2;
+    float sweat3Width = 1;
+
     // ---------------------------
     // Constructor
     // ---------------------------
@@ -411,6 +439,11 @@ class TFT_RoboEyes {
     void setColors(uint16_t main, uint16_t background) {
       mainColor = main;
       bgColor = background;
+    }
+
+    // Enable or disable sweat animation
+    void setSweat(bool sweatBit) {
+      sweat = sweatBit;
     }
 
     // ---------------------------
@@ -829,6 +862,33 @@ class TFT_RoboEyes {
       if (!cyclops) {
         sprite->fillRoundRect(eyeRx - 1, (eyeRy + eyeRheightCurrent) - eyelidsHappyBottomOffset + 1,
                               eyeRwidthCurrent + 2, eyeRheightDefault, eyeRborderRadiusCurrent, bgColor);
+      }
+
+      // Add sweat drops
+      if (sweat) {
+        // Sweat drop 1 -> left corner
+        if (sweat1YPos <= sweat1YPosMax) { sweat1YPos += 0.5; } // vertical movement from initial to max
+        else { sweat1XPosInitial = random(30); sweat1YPos = 2; sweat1YPosMax = (random(10) + 10); sweat1Width = 1; sweat1Height = 2; } // if max vertical position is reached: reset all values for next drop
+        if (sweat1YPos <= sweat1YPosMax / 2) { sweat1Width += 0.5; sweat1Height += 0.5; } // shape grows in first half of animation ...
+        else { sweat1Width -= 0.1; sweat1Height -= 0.5; } // ... and shrinks in second half of animation
+        sweat1XPos = sweat1XPosInitial - (sweat1Width / 2); // keep the growing shape centered to initial x position
+        sprite->fillRoundRect(sweat1XPos, sweat1YPos, sweat1Width, sweat1Height, sweatBorderradius, mainColor); // draw sweat drop
+
+        // Sweat drop 2 -> center area
+        if (sweat2YPos <= sweat2YPosMax) { sweat2YPos += 0.5; } // vertical movement from initial to max
+        else { sweat2XPosInitial = random((screenWidth - 60)) + 30; sweat2YPos = 2; sweat2YPosMax = (random(10) + 10); sweat2Width = 1; sweat2Height = 2; } // if max vertical position is reached: reset all values for next drop
+        if (sweat2YPos <= sweat2YPosMax / 2) { sweat2Width += 0.5; sweat2Height += 0.5; } // shape grows in first half of animation ...
+        else { sweat2Width -= 0.1; sweat2Height -= 0.5; } // ... and shrinks in second half of animation
+        sweat2XPos = sweat2XPosInitial - (sweat2Width / 2); // keep the growing shape centered to initial x position
+        sprite->fillRoundRect(sweat2XPos, sweat2YPos, sweat2Width, sweat2Height, sweatBorderradius, mainColor); // draw sweat drop
+
+        // Sweat drop 3 -> right corner
+        if (sweat3YPos <= sweat3YPosMax) { sweat3YPos += 0.5; } // vertical movement from initial to max
+        else { sweat3XPosInitial = (screenWidth - 30) + (random(30)); sweat3YPos = 2; sweat3YPosMax = (random(10) + 10); sweat3Width = 1; sweat3Height = 2; } // if max vertical position is reached: reset all values for next drop
+        if (sweat3YPos <= sweat3YPosMax / 2) { sweat3Width += 0.5; sweat3Height += 0.5; } // shape grows in first half of animation ...
+        else { sweat3Width -= 0.1; sweat3Height -= 0.5; } // ... and shrinks in second half of animation
+        sweat3XPos = sweat3XPosInitial - (sweat3Width / 2); // keep the growing shape centered to initial x position
+        sprite->fillRoundRect(sweat3XPos, sweat3YPos, sweat3Width, sweat3Height, sweatBorderradius, mainColor); // draw sweat drop
       }
     } // end drawEyes
 
