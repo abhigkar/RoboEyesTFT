@@ -48,6 +48,8 @@ class TFT_RoboEyes {
     // Display configuration – you can update these via setScreenSize()
     int screenWidth = 135;   // effective width (set by user)
     int screenHeight = 240;  // effective height (set by user)
+    bool roundDisplay = false;   // enables round-safe movement bounds
+    int roundEdgePadding = 0;    // extra padding from round edge in pixels
     uint16_t bgColor;        // background color for drawing overlays
     uint16_t mainColor;      // color for the eyes
 
@@ -266,6 +268,13 @@ class TFT_RoboEyes {
       }
     }
 
+    // Enable/disable round-display safe area.
+    // For 240x240 round panels, set active=true and optionally add a few pixels of padding.
+    void setRoundDisplay(bool active, int padding = 0) {
+      roundDisplay = active;
+      roundEdgePadding = (padding < 0) ? 0 : padding;
+    }
+
     // Customization methods
     void setWidth(byte leftEye, byte rightEye) {
       eyeLwidthNext = leftEye;
@@ -400,10 +409,12 @@ class TFT_RoboEyes {
     // ---------------------------
     // Getters for screen constraints
     int getScreenConstraint_X() {
-      return screenWidth - eyeLwidthCurrent - spaceBetweenCurrent - eyeRwidthCurrent;
+      int constraint = screenWidth - eyeLwidthCurrent - spaceBetweenCurrent - eyeRwidthCurrent;
+      return (constraint < 0) ? 0 : constraint;
     }
     int getScreenConstraint_Y() {
-      return screenHeight - eyeLheightDefault;
+      int constraint = screenHeight - eyeLheightDefault;
+      return (constraint < 0) ? 0 : constraint;
     }
 
     // ---------------------------
@@ -461,6 +472,64 @@ class TFT_RoboEyes {
     }
 
   private:
+    void clampEyePositions(bool clampTargets, bool clampCurrent) {
+      int eyeHeight = eyeLheightCurrent;
+      if (!cyclops && eyeRheightCurrent > eyeHeight) eyeHeight = eyeRheightCurrent;
+      if (eyeHeight < 1) eyeHeight = 1;
+
+      int totalWidth = eyeLwidthCurrent;
+      if (!cyclops) totalWidth += spaceBetweenCurrent + eyeRwidthCurrent;
+      if (totalWidth < 1) totalWidth = 1;
+
+      int minX = 0;
+      int minY = 0;
+      int maxX = screenWidth - totalWidth;
+      int maxY = screenHeight - eyeHeight;
+
+      if (roundDisplay) {
+        int minDim = (screenWidth < screenHeight) ? screenWidth : screenHeight;
+        int safeSide = ((minDim * 707) / 1000) - (2 * roundEdgePadding);
+        if (safeSide < 1) safeSide = 1;
+
+        int safeMinX = ((screenWidth - safeSide) / 2) + roundEdgePadding;
+        int safeMinY = ((screenHeight - safeSide) / 2) + roundEdgePadding;
+        int safeMaxX = safeMinX + safeSide - totalWidth;
+        int safeMaxY = safeMinY + safeSide - eyeHeight;
+
+        minX = safeMinX;
+        minY = safeMinY;
+        maxX = safeMaxX;
+        maxY = safeMaxY;
+      }
+
+      if (maxX < minX) {
+        int centerX = (screenWidth - totalWidth) / 2;
+        minX = centerX;
+        maxX = centerX;
+      }
+      if (maxY < minY) {
+        int centerY = (screenHeight - eyeHeight) / 2;
+        minY = centerY;
+        maxY = centerY;
+      }
+
+      if (clampTargets) {
+        if (eyeLxNext < minX) eyeLxNext = minX;
+        if (eyeLxNext > maxX) eyeLxNext = maxX;
+        if (eyeLyNext < minY) eyeLyNext = minY;
+        if (eyeLyNext > maxY) eyeLyNext = maxY;
+        eyeRxNext = eyeLxNext + eyeLwidthCurrent + spaceBetweenCurrent;
+      }
+
+      if (clampCurrent) {
+        if (eyeLx < minX) eyeLx = minX;
+        if (eyeLx > maxX) eyeLx = maxX;
+        if (eyeLy < minY) eyeLy = minY;
+        if (eyeLy > maxY) eyeLy = maxY;
+        eyeRx = eyeLx + eyeLwidthCurrent + spaceBetweenCurrent;
+      }
+    }
+
     // ---------------------------
     // Core drawing logic – adapts animations and draws the eyes on the sprite.
     void drawEyes() {
@@ -496,6 +565,9 @@ class TFT_RoboEyes {
       eyeLwidthCurrent = (eyeLwidthCurrent + eyeLwidthNext) / 2;
       eyeRwidthCurrent = (eyeRwidthCurrent + eyeRwidthNext) / 2;
       spaceBetweenCurrent = (spaceBetweenCurrent + spaceBetweenNext) / 2;
+
+      // Keep targets/current positions inside the drawable safe area.
+      clampEyePositions(true, true);
 
       // Smooth coordinate transitions
       eyeLx = (eyeLx + eyeLxNext) / 2;
@@ -577,6 +649,9 @@ class TFT_RoboEyes {
         }
         vFlickerAlternate = !vFlickerAlternate;
       }
+
+      // Re-clamp after flicker offsets.
+      clampEyePositions(false, true);
 
       if (cyclops) {
         eyeRwidthCurrent = 0;
